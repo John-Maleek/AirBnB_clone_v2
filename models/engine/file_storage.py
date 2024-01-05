@@ -63,5 +63,3 @@ class FileStorage:
         if self.__objects[key]:
             del self.__objects[key]
             self.save()
-        else:
-            return
