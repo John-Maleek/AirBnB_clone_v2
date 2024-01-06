@@ -1,7 +1,13 @@
 #!/usr/bin/python3
 """This model defines the DB storage class for AirBnB"""
 
-from models import *
+from models.base_model import BaseModel, Base
+from models.user import User
+from models.state import State
+from models.city import City
+from models.amenity import Amenity
+from models.place import Place
+from models.review import Review
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
@@ -29,7 +35,7 @@ class DBStorage:
                                       os.environ['HBNB_MYSQL_DB'])
 
         try:
-            if os.environ['HBNB_MYSQL_ENV'] == "test":
+            if os.environ['HBNB_ENV'] == "test":
                 Base.metadata.drop_all(self.__engine)
         except KeyError:
             pass
