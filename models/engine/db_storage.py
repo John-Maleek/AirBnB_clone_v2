@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """This model defines the DB storage class for AirBnB"""
-
+import models
 from models.base_model import BaseModel, Base
 from models.user import User
 from models.state import State
@@ -8,11 +8,12 @@ from models.city import City
 from models.amenity import Amenity
 from models.place import Place
 from models.review import Review
-import os
+from os import getenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 
-all_classes = {"State", "City", "Amenity", "User", "Place", "Review"}
+all_classes = {"Amenity": Amenity, "City": City,
+               "Place": Place, "Review": Review, "State": State, "User": User}
 
 
 class DBStorage:
@@ -24,35 +25,30 @@ class DBStorage:
 
     __engine = None
     __session = None
-    valid_classes = ["User", "State", "City", "Amenity", "Place", "Review"]
 
     def __init__(self):
-        self.__engine = create_engine("mysql+mysqldb://" +
-                                      os.environ['HBNB_MYSQL_USER'] +
-                                      ":" + os.environ['HBNB_MYSQL_PWD'] +
-                                      "@" + os.environ['HBNB_MYSQL_HOST'] +
-                                      ":3306/" +
-                                      os.environ['HBNB_MYSQL_DB'])
-
-        try:
-            if os.environ['HBNB_ENV'] == "test":
-                Base.metadata.drop_all(self.__engine)
-        except KeyError:
-            pass
+        HBNB_MYSQL_USER = getenv('HBNB_MYSQL_USER')
+        HBNB_MYSQL_PWD = getenv('HBNB_MYSQL_PWD')
+        HBNB_MYSQL_HOST = getenv('HBNB_MYSQL_HOST')
+        HBNB_MYSQL_DB = getenv('HBNB_MYSQL_DB')
+        HBNB_ENV = getenv('HBNB_ENV')
+        self.__engine = create_engine('mysql+mysqldb://{}:{}@{}/{}'.
+                                      format(HBNB_MYSQL_USER,
+                                             HBNB_MYSQL_PWD,
+                                             HBNB_MYSQL_HOST,
+                                             HBNB_MYSQL_DB))
+        if HBNB_ENV == "test":
+            Base.metadata.drop_all(self.__engine)
 
     def all(self, cls=None):
-        storage = {}
-        if cls is None:
-            for cls_name in self.valid_classes:
-                for instance in self.__session.query(eval(cls_name)):
-                    storage[instance.id] = instance
-        else:
-            if cls not in self.valid_classes:
-                return
-            for instance in self.__session.query(eval(cls)):
-                storage[instance.id] = instance
-
-        return storage
+        obj_dict = {}
+        for entry in all_classes:
+            if cls is None or cls is all_classes[entry] or cls is entry:
+                all_obj = self.__session.query(all_classes[entry]).all()
+                for obj in all_obj:
+                    key = obj.__class__.__name__ + '.' + obj.id
+                    obj_dict[key] = obj
+        return obj_dict
 
     def new(self, obj):
         self.__session.add(obj)
@@ -77,16 +73,13 @@ class DBStorage:
 
     def reload(self):
         Base.metadata.create_all(self.__engine)
-        self.__session = scoped_session(sessionmaker(bind=self.__engine))
+        self.__session = scoped_session(sessionmaker(
+            bind=self.__engine, expire_on_commit=False))
 
     def delete(self, obj=None):
         if obj is None:
             return
-
         self.__session.delete(obj)
-
-    def close(self):
-        self.__session.reload()
 
     def close(self):
         self.__session.remove()
